@@ -143,6 +143,7 @@ class AgentBrain:
             mcp_servers={"secretary": server},
             allowed_tools=_build_allowed_tools(tools),
             max_turns=10,
+            env={"ANTHROPIC_API_KEY": settings.anthropic_api_key},
         )
 
         client = ClaudeSDKClient(options=options)
