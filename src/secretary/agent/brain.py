@@ -180,6 +180,11 @@ class AgentBrain:
         if client:
             await client.__aexit__(None, None, None)
 
+    @property
+    def active_session_ids(self) -> list[int]:
+        """현재 활성화된 세션의 user_id 목록을 반환한다."""
+        return list(self._sessions.keys())
+
     async def close_all(self) -> None:
         for user_id in list(self._sessions):
             await self.reset_session(user_id)

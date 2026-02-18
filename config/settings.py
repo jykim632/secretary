@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     # Family invite
     invite_code_default_expiry_days: int = 7
 
+    # Web dashboard
+    web_enabled: bool = True
+    web_port: int = 8080
+
     # Web search (optional)
     brave_search_api_key: str = ""
 

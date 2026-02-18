@@ -3,7 +3,6 @@
 import asyncio
 import logging
 import signal
-import sys
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 
@@ -102,6 +101,29 @@ async def main() -> None:
     await reminder_engine.start()
     logger.info("Reminder engine started")
 
+    # Start Web Dashboard
+    web_server = None
+    if settings.web_enabled:
+        import uvicorn
+
+        from secretary.web.app import create_app, set_components
+
+        set_components(
+            telegram_bot=telegram_bot,
+            slack_bot=slack_bot,
+            reminder_engine=reminder_engine,
+        )
+        web_app = create_app()
+        config = uvicorn.Config(
+            web_app,
+            host="0.0.0.0",
+            port=settings.web_port,
+            log_level="warning",
+        )
+        web_server = uvicorn.Server(config)
+        tasks.append(asyncio.create_task(web_server.serve()))
+        logger.info("Web dashboard started on port %d", settings.web_port)
+
     # Wait for shutdown signal
     stop_event = asyncio.Event()
 
@@ -118,6 +140,8 @@ async def main() -> None:
 
     # Cleanup
     logger.info("Shutting down...")
+    if web_server:
+        web_server.should_exit = True
     await reminder_engine.stop()
     if telegram_bot:
         await telegram_bot.stop()

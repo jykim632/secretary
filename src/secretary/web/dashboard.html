@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secretary Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0f1117;
+    color: #e1e4e8;
+    min-height: 100vh;
+  }
+  header {
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    padding: 16px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  header h1 { font-size: 20px; font-weight: 600; }
+  header .actions { display: flex; gap: 8px; }
+  .btn {
+    padding: 6px 14px;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    background: #21262d;
+    color: #c9d1d9;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.15s;
+  }
+  .btn:hover { background: #30363d; }
+  .btn-danger { border-color: #f85149; color: #f85149; }
+  .btn-danger:hover { background: #f8514920; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+  /* 상태 카드 */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .card .label { font-size: 12px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .card .value { font-size: 22px; font-weight: 600; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .dot-green { background: #3fb950; }
+  .dot-red { background: #f85149; }
+
+  /* 패널 */
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 800px) { .panels { grid-template-columns: 1fr; } }
+  .panel {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+  }
+  .panel-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #30363d;
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  /* 세션 패널 */
+  .session-list { padding: 8px; flex: 1; overflow-y: auto; max-height: 400px; }
+  .session-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+  }
+  .session-item:hover { background: #21262d; }
+  .session-info { font-size: 13px; }
+  .session-info .uid { color: #8b949e; font-size: 11px; }
+  .no-sessions { padding: 24px; text-align: center; color: #8b949e; font-size: 13px; }
+
+  /* 로그 패널 */
+  .log-container {
+    flex: 1;
+    min-height: 400px;
+    max-height: 600px;
+    overflow-y: auto;
+    padding: 12px;
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    background: #0d1117;
+    border-radius: 0 0 8px 8px;
+  }
+  .log-line { white-space: pre-wrap; word-break: break-all; }
+  .log-line.INFO { color: #8b949e; }
+  .log-line.WARNING { color: #d29922; }
+  .log-line.ERROR { color: #f85149; }
+  .log-line.DEBUG { color: #58a6ff; }
+
+  /* 통계 그리드 */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-bottom: 20px; }
+  .stat-item {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+  }
+  .stat-item .stat-value { font-size: 28px; font-weight: 700; color: #58a6ff; }
+  .stat-item .stat-label { font-size: 11px; color: #8b949e; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Secretary Dashboard</h1>
+  <div class="actions">
+    <button class="btn" onclick="resetAllSessions()">Reset All Sessions</button>
+    <button class="btn btn-danger" onclick="shutdownServer()">Restart Server</button>
+  </div>
+</header>
+
+<div class="container">
+  <!-- 상태 카드 -->
+  <div class="cards" id="status-cards">
+    <div class="card">
+      <div class="label">Uptime</div>
+      <div class="value" id="uptime">-</div>
+    </div>
+    <div class="card">
+      <div class="label">Telegram</div>
+      <div class="value" id="telegram-status"><span class="dot dot-red"></span>Off</div>
+    </div>
+    <div class="card">
+      <div class="label">Slack</div>
+      <div class="value" id="slack-status"><span class="dot dot-red"></span>Off</div>
+    </div>
+    <div class="card">
+      <div class="label">Active Sessions</div>
+      <div class="value" id="session-count">0</div>
+    </div>
+  </div>
+
+  <!-- 통계 -->
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-item"><div class="stat-value" id="stat-users">-</div><div class="stat-label">Users</div></div>
+    <div class="stat-item"><div class="stat-value" id="stat-memos">-</div><div class="stat-label">Memos</div></div>
+    <div class="stat-item"><div class="stat-value" id="stat-todos">-</div><div class="stat-label">Todos</div></div>
+    <div class="stat-item"><div class="stat-value" id="stat-events">-</div><div class="stat-label">Events</div></div>
+    <div class="stat-item"><div class="stat-value" id="stat-reminders">-</div><div class="stat-label">Reminders</div></div>
+    <div class="stat-item"><div class="stat-value" id="stat-conversations">-</div><div class="stat-label">Conversations</div></div>
+  </div>
+
+  <!-- 세션 + 로그 -->
+  <div class="panels">
+    <div class="panel">
+      <div class="panel-header">
+        <span>Active Sessions</span>
+        <button class="btn" onclick="loadSessions()" style="padding:3px 10px;font-size:12px;">Refresh</button>
+      </div>
+      <div class="session-list" id="session-list">
+        <div class="no-sessions">Loading...</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <span>Live Logs</span>
+        <span id="log-status" style="font-size:11px;color:#8b949e;">connecting...</span>
+      </div>
+      <div class="log-container" id="log-container"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const MAX_LOG_LINES = 500;
+
+  // 상태 갱신
+  async function loadStatus() {
+    try {
+      const res = await fetch('/api/status');
+      const d = await res.json();
+      document.getElementById('uptime').textContent = d.uptime;
+      document.getElementById('session-count').textContent = d.active_sessions;
+      setConnectionDot('telegram-status', d.telegram.connected);
+      setConnectionDot('slack-status', d.slack.connected);
+    } catch(e) { console.error('Status fetch failed', e); }
+  }
+
+  function setConnectionDot(id, connected) {
+    const el = document.getElementById(id);
+    el.textContent = '';
+    const dot = document.createElement('span');
+    dot.className = 'dot ' + (connected ? 'dot-green' : 'dot-red');
+    el.appendChild(dot);
+    el.appendChild(document.createTextNode(connected ? 'Connected' : 'Off'));
+  }
+
+  // 통계 갱신
+  async function loadStats() {
+    try {
+      const res = await fetch('/api/stats');
+      const d = await res.json();
+      document.getElementById('stat-users').textContent = d.users;
+      document.getElementById('stat-memos').textContent = d.memos;
+      document.getElementById('stat-todos').textContent = d.todos.done + '/' + d.todos.total;
+      document.getElementById('stat-events').textContent = d.events;
+      document.getElementById('stat-reminders').textContent = d.reminders;
+      document.getElementById('stat-conversations').textContent = d.conversations;
+    } catch(e) { console.error('Stats fetch failed', e); }
+  }
+
+  // 세션 목록
+  async function loadSessions() {
+    try {
+      const res = await fetch('/api/sessions');
+      const d = await res.json();
+      const list = document.getElementById('session-list');
+      list.textContent = '';
+
+      if (d.sessions.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'no-sessions';
+        empty.textContent = 'No active sessions';
+        list.appendChild(empty);
+        return;
+      }
+
+      d.sessions.forEach(function(s) {
+        const item = document.createElement('div');
+        item.className = 'session-item';
+
+        const info = document.createElement('div');
+        info.className = 'session-info';
+        info.appendChild(document.createTextNode(s.display_name + ' '));
+        const uid = document.createElement('span');
+        uid.className = 'uid';
+        uid.textContent = '#' + s.user_id;
+        info.appendChild(uid);
+
+        const btn = document.createElement('button');
+        btn.className = 'btn';
+        btn.style.cssText = 'padding:2px 8px;font-size:11px;';
+        btn.textContent = 'Reset';
+        btn.addEventListener('click', function() { resetSession(s.user_id); });
+
+        item.appendChild(info);
+        item.appendChild(btn);
+        list.appendChild(item);
+      });
+    } catch(e) { console.error('Sessions fetch failed', e); }
+  }
+
+  async function resetSession(userId) {
+    if (!confirm('Reset session for user #' + userId + '?')) return;
+    await fetch('/api/sessions/' + userId + '/reset', { method: 'POST' });
+    loadSessions();
+    loadStatus();
+  }
+
+  async function resetAllSessions() {
+    if (!confirm('Reset ALL active sessions?')) return;
+    await fetch('/api/sessions/reset-all', { method: 'POST' });
+    loadSessions();
+    loadStatus();
+  }
+
+  async function shutdownServer() {
+    if (!confirm('Restart server? (SIGTERM \u2192 launchd auto-restart)')) return;
+    try { await fetch('/api/shutdown', { method: 'POST' }); } catch(e) { /* expected */ }
+  }
+
+  // SSE 로그 스트리밍
+  function connectLogStream() {
+    var container = document.getElementById('log-container');
+    var statusEl = document.getElementById('log-status');
+
+    // 초기 로그 로드
+    fetch('/api/logs?lines=100')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.lines) {
+          d.lines.forEach(function(line) { appendLogLine(container, line); });
+          container.scrollTop = container.scrollHeight;
+        }
+      })
+      .catch(function() {});
+
+    var es = new EventSource('/api/logs/stream');
+    es.onopen = function() {
+      statusEl.textContent = 'streaming';
+      statusEl.style.color = '#3fb950';
+    };
+    es.onmessage = function(e) {
+      appendLogLine(container, e.data);
+      // 자동 스크롤 (하단 근처에 있을 때만)
+      var atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+      if (atBottom) container.scrollTop = container.scrollHeight;
+    };
+    es.onerror = function() {
+      statusEl.textContent = 'disconnected';
+      statusEl.style.color = '#f85149';
+      es.close();
+      setTimeout(connectLogStream, 3000);
+    };
+  }
+
+  function appendLogLine(container, text) {
+    var div = document.createElement('div');
+    div.className = 'log-line ' + detectLevel(text);
+    div.textContent = text;
+    container.appendChild(div);
+    // 최대 라인 수 유지
+    while (container.children.length > MAX_LOG_LINES) {
+      container.removeChild(container.firstChild);
+    }
+  }
+
+  function detectLevel(text) {
+    if (text.indexOf('[ERROR]') !== -1 || text.indexOf('[CRITICAL]') !== -1) return 'ERROR';
+    if (text.indexOf('[WARNING]') !== -1) return 'WARNING';
+    if (text.indexOf('[DEBUG]') !== -1) return 'DEBUG';
+    return 'INFO';
+  }
+
+  // 초기화
+  loadStatus();
+  loadStats();
+  loadSessions();
+  connectLogStream();
+  setInterval(function() { loadStatus(); loadStats(); }, 10000);
+</script>
+</body>
+</html>
