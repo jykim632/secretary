@@ -4,7 +4,7 @@ import asyncio
 import logging
 import signal
 import sys
-from logging.handlers import RotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 
 from config.settings import settings
@@ -23,13 +23,14 @@ def setup_logging() -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    # File handler
-    fh = RotatingFileHandler(
+    # File handler — 매일 자정에 로테이션, 30일 보관
+    fh = TimedRotatingFileHandler(
         log_dir / "secretary.log",
-        maxBytes=5 * 1024 * 1024,  # 5 MB
-        backupCount=3,
+        when="midnight",
+        backupCount=30,
         encoding="utf-8",
     )
+    fh.suffix = "%Y-%m-%d"
     fh.setFormatter(formatter)
     fh.setLevel(logging.INFO)
 
@@ -81,15 +82,19 @@ async def main() -> None:
     # Start Slack bot
     slack_bot = None
     if settings.slack_bot_token and settings.slack_app_token:
-        from secretary.platforms.slack_bot import SlackBot
+        try:
+            from secretary.platforms.slack_bot import SlackBot
 
-        slack_bot = SlackBot()
-        tasks.append(asyncio.create_task(_run_slack(slack_bot)))
-        logger.info("Slack bot starting...")
+            slack_bot = SlackBot()
+            tasks.append(asyncio.create_task(_run_slack(slack_bot)))
+            logger.info("Slack bot starting...")
 
-        from secretary.services.notification_service import notification_service
+            from secretary.services.notification_service import notification_service
 
-        notification_service.register_sender("slack", slack_bot)
+            notification_service.register_sender("slack", slack_bot)
+        except Exception:
+            logger.warning("Slack bot failed to start — skipping", exc_info=True)
+            slack_bot = None
 
     # Start Reminder Engine
     from secretary.scheduler.reminder_engine import reminder_engine
@@ -128,7 +133,11 @@ async def main() -> None:
 
 
 async def _run_slack(slack_bot) -> None:
-    await slack_bot.start()
+    logger = logging.getLogger(__name__)
+    try:
+        await slack_bot.start()
+    except Exception:
+        logger.warning("Slack bot failed to connect — skipping", exc_info=True)
 
 
 if __name__ == "__main__":
