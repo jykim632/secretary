@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from secretary.models.database import Base
 
 # All models must be imported so Base.metadata knows about them
-from secretary.models.user import FamilyGroup, User, UserPlatformLink  # noqa: F401
+from secretary.models.user import FamilyGroup, FamilyInvite, User, UserPlatformLink  # noqa: F401
 from secretary.models.memo import Memo, Todo  # noqa: F401
 from secretary.models.calendar import Event, Reminder  # noqa: F401
 from secretary.models.conversation import ConversationHistory  # noqa: F401

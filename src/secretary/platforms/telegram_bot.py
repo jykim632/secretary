@@ -18,7 +18,7 @@ from secretary.agent.brain import agent_brain
 from secretary.models.database import async_session, init_db
 from secretary.models.user import FamilyGroup
 from secretary.platforms.base import PlatformAdapter
-from secretary.services.user_service import get_or_create_user
+from secretary.services.user_service import create_family_invite, get_or_create_user
 
 logger = logging.getLogger(__name__)
 
@@ -184,6 +184,7 @@ class TelegramBot(PlatformAdapter):
         self._app = Application.builder().token(settings.telegram_bot_token).build()
 
         self._app.add_handler(CommandHandler("start", self._handle_start))
+        self._app.add_handler(CommandHandler("invite", self._handle_invite))
         self._app.add_handler(CommandHandler("reset", self._handle_reset))
         self._app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self._handle_message))
 
@@ -225,18 +226,65 @@ class TelegramBot(PlatformAdapter):
         tg_user = update.effective_user
         if not tg_user:
             return
+
+        # Extract invite code from /start payload (e.g. /start ABCD1234)
+        invite_code = context.args[0] if context.args else None
+
         async with async_session() as session:
             user = await get_or_create_user(
                 session,
                 platform="telegram",
                 platform_user_id=str(tg_user.id),
                 display_name=tg_user.full_name or tg_user.first_name,
+                invite_code=invite_code,
             )
-            role_msg = " (관리자)" if user.role == "admin" else ""
+
+            if user.role == "admin":
+                await update.message.reply_text(
+                    f"안녕하세요, {user.display_name}님 (관리자)! 🏠\n"
+                    f"가족 비서입니다. 새 가족 그룹이 생성되었어요.\n\n"
+                    f"가족을 초대하려면 /invite 명령을 사용하세요.\n"
+                    f"메모, 할일, 일정, 리마인더 등을 관리해드려요."
+                )
+            elif invite_code and user.role == "member":
+                await update.message.reply_text(
+                    f"안녕하세요, {user.display_name}님! 🎉\n"
+                    f"초대 코드로 가족에 합류했어요.\n\n"
+                    f"메모, 할일, 일정, 리마인더 등을 관리해드려요."
+                )
+            else:
+                await update.message.reply_text(
+                    f"안녕하세요, {user.display_name}님! 🏠\n"
+                    f"가족 비서입니다. 무엇을 도와드릴까요?\n\n"
+                    f"메모, 할일, 일정, 리마인더 등을 관리해드려요."
+                )
+
+    async def _handle_invite(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Generate a family invite code. Admin only."""
+        tg_user = update.effective_user
+        if not tg_user:
+            return
+        async with async_session() as session:
+            from secretary.services.user_service import get_user_by_platform
+
+            user = await get_user_by_platform(session, "telegram", str(tg_user.id))
+            if not user:
+                await update.message.reply_text("먼저 /start 로 등록해주세요.")
+                return
+
+            invite = await create_family_invite(session, user.id)
+            if not invite:
+                await update.message.reply_text("초대 코드는 관리자만 생성할 수 있습니다. 🔒")
+                return
+
+            bot_username = (await self._app.bot.get_me()).username
+            invite_link = f"https://t.me/{bot_username}?start={invite.code}"
             await update.message.reply_text(
-                f"안녕하세요, {user.display_name}님{role_msg}! 🏠\n"
-                f"가족 비서입니다. 무엇을 도와드릴까요?\n\n"
-                f"메모, 할일, 일정, 리마인더 등을 관리해드려요."
+                f"가족 초대 코드가 생성되었습니다! 📨\n\n"
+                f"코드: {invite.code}\n"
+                f"링크: {invite_link}\n"
+                f"만료: {invite.expires_at.strftime('%Y-%m-%d')}\n\n"
+                f"이 코드나 링크를 가족에게 공유해주세요."
             )
 
     async def _handle_reset(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

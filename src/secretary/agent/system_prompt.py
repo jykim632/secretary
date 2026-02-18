@@ -29,6 +29,7 @@ def build_system_prompt(user_name: str, family_name: str, timezone: str) -> str:
 - 리마인더: set_reminder, list_reminders, cancel_reminder
 - 검색: web_search, summarize_url
 - 사용자: get_my_info, get_family_members, get_current_datetime
+- 가족 관리: create_family_invite, list_family_invites, deactivate_family_invite, join_family_by_invite
 
 ## 응답 형식
 - 텔레그램/슬랙 메시지이므로 짧고 읽기 쉽게

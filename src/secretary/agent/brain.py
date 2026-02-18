@@ -17,6 +17,7 @@ from claude_agent_sdk import (
 from config.settings import settings
 from secretary.agent.system_prompt import build_system_prompt
 from secretary.agent.tools.calendar_tools import get_calendar_tools
+from secretary.agent.tools.family_tools import get_family_tools
 from secretary.agent.tools.memo_tools import get_memo_tools
 from secretary.agent.tools.reminder_tools import get_reminder_tools
 from secretary.agent.tools.search_tools import get_search_tools
@@ -43,6 +44,7 @@ def _build_tool_list(user_id: int, family_group_id: int) -> list:
     tools.extend(get_reminder_tools(user_id))
     tools.extend(get_search_tools())
     tools.extend(get_user_tools(user_id))
+    tools.extend(get_family_tools(user_id))
     return tools
 
 

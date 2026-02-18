@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     conversation_history_ttl_hours: int = 24
     conversation_history_retention_days: int = 30  # 오래된 대화 이력 자동 삭제 (일 단위)
 
+    # Family invite
+    invite_code_default_expiry_days: int = 7
+
     # Web search (optional)
     brave_search_api_key: str = ""
 
