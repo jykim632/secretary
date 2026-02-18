@@ -95,7 +95,13 @@ def get_memo_tools(user_id: int, family_group_id: int) -> list:
                 return _text("메모를 찾을 수 없거나 삭제 권한이 없습니다.")
             return _text(f"메모 #{args['memo_id']} 삭제됨")
 
-    return [create_memo_tool, list_memos_tool, search_memos_tool, update_memo_tool, delete_memo_tool]
+    return [
+        create_memo_tool,
+        list_memos_tool,
+        search_memos_tool,
+        update_memo_tool,
+        delete_memo_tool,
+    ]
 
 
 def _text(msg: str) -> dict[str, Any]:

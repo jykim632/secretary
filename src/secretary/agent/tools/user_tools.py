@@ -21,11 +21,7 @@ def get_user_tools(user_id: int) -> list:
             user = await session.get(User, user_id)
             if not user:
                 return _text("사용자 정보를 찾을 수 없습니다.")
-            return _text(
-                f"이름: {user.display_name}\n"
-                f"역할: {user.role}\n"
-                f"시간대: {user.timezone}"
-            )
+            return _text(f"이름: {user.display_name}\n역할: {user.role}\n시간대: {user.timezone}")
 
     @tool(
         "get_family_members",
@@ -53,8 +49,7 @@ def get_user_tools(user_id: int) -> list:
         weekdays = ["월", "화", "수", "목", "금", "토", "일"]
         weekday = weekdays[now.weekday()]
         return _text(
-            f"{now.strftime('%Y년 %m월 %d일')} ({weekday}요일) "
-            f"{now.strftime('%H시 %M분')}"
+            f"{now.strftime('%Y년 %m월 %d일')} ({weekday}요일) {now.strftime('%H시 %M분')}"
         )
 
     return [get_my_info_tool, get_family_members_tool, get_current_datetime_tool]

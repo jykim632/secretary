@@ -52,7 +52,9 @@ def get_todo_tools(user_id: int, family_group_id: int) -> list:
     async def list_todos_tool(args: dict[str, Any]) -> dict[str, Any]:
         async with async_session() as session:
             todos = await list_todos(
-                session, user_id, family_group_id,
+                session,
+                user_id,
+                family_group_id,
                 include_done=args.get("include_done", False),
             )
             if not todos:

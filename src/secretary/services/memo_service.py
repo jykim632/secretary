@@ -7,6 +7,7 @@ from secretary.models.user import User
 
 # ── Memo CRUD ──────────────────────────────────────────────
 
+
 async def create_memo(
     session: AsyncSession,
     user_id: int,
@@ -109,6 +110,7 @@ async def delete_memo(session: AsyncSession, memo_id: int, user_id: int) -> bool
 
 # ── Todo CRUD ──────────────────────────────────────────────
 
+
 async def create_todo(
     session: AsyncSession,
     user_id: int,
@@ -150,11 +152,7 @@ async def list_todos(
         conditions.append(Todo.user_id == user_id)
     if not include_done:
         conditions.append(Todo.is_done == False)  # noqa: E712
-    stmt = (
-        select(Todo)
-        .where(*conditions)
-        .order_by(Todo.priority.desc(), Todo.created_at.desc())
-    )
+    stmt = select(Todo).where(*conditions).order_by(Todo.priority.desc(), Todo.created_at.desc())
     result = await session.execute(stmt)
     return list(result.scalars().all())
 
@@ -196,6 +194,7 @@ async def delete_todo(session: AsyncSession, todo_id: int, user_id: int) -> bool
 
 
 # ── Helpers ────────────────────────────────────────────────
+
 
 async def _get_family_member_ids(session: AsyncSession, family_group_id: int) -> list[int]:
     stmt = select(User.id).where(User.family_group_id == family_group_id)

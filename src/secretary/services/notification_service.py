@@ -50,9 +50,7 @@ class NotificationService:
                     await sender.send_message(link.platform_user_id, text)
                     return True
                 except Exception:
-                    logger.exception(
-                        "Failed to send via %s to user_id=%d", link.platform, user_id
-                    )
+                    logger.exception("Failed to send via %s to user_id=%d", link.platform, user_id)
                     continue
 
         logger.error("All platform sends failed for user_id=%d", user_id)

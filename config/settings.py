@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     # Claude model
     claude_model: str = "claude-sonnet-4-5"
 
+    # Conversation history (세션 복원 시 이전 대화 컨텍스트 로드)
+    conversation_history_max_messages: int = 20
+    conversation_history_ttl_hours: int = 24
+
     # Web search (optional)
     brave_search_api_key: str = ""
 

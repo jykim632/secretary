@@ -82,9 +82,7 @@ async def get_family_members(session: AsyncSession, user_id: int) -> list[User]:
     if not user:
         return []
     stmt = (
-        select(User)
-        .where(User.family_group_id == user.family_group_id)
-        .order_by(User.created_at)
+        select(User).where(User.family_group_id == user.family_group_id).order_by(User.created_at)
     )
     result = await session.execute(stmt)
     return list(result.scalars().all())
@@ -108,9 +106,7 @@ async def link_platform(
     return link
 
 
-async def get_user_platform_links(
-    session: AsyncSession, user_id: int
-) -> list[UserPlatformLink]:
+async def get_user_platform_links(session: AsyncSession, user_id: int) -> list[UserPlatformLink]:
     stmt = select(UserPlatformLink).where(UserPlatformLink.user_id == user_id)
     result = await session.execute(stmt)
     return list(result.scalars().all())

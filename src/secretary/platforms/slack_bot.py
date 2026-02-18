@@ -77,12 +77,14 @@ class SlackBot(PlatformAdapter):
 
             from secretary.models.conversation import ConversationHistory
 
-            session.add(ConversationHistory(
-                user_id=user.id,
-                role="user",
-                content=text,
-                platform="slack",
-            ))
+            session.add(
+                ConversationHistory(
+                    user_id=user.id,
+                    role="user",
+                    content=text,
+                    platform="slack",
+                )
+            )
             await session.commit()
 
             family_group = await session.get(FamilyGroup, user.family_group_id)
@@ -104,12 +106,14 @@ class SlackBot(PlatformAdapter):
         async with async_session() as session:
             from secretary.models.conversation import ConversationHistory
 
-            session.add(ConversationHistory(
-                user_id=user.id,
-                role="assistant",
-                content=response,
-                platform="slack",
-            ))
+            session.add(
+                ConversationHistory(
+                    user_id=user.id,
+                    role="assistant",
+                    content=response,
+                    platform="slack",
+                )
+            )
             await session.commit()
 
         await say(response)

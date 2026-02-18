@@ -13,6 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # ── Logging ────────────────────────────────────────────────
 
+
 def setup_logging() -> None:
     log_dir = BASE_DIR / "logs"
     log_dir.mkdir(exist_ok=True)
@@ -49,6 +50,7 @@ def setup_logging() -> None:
 
 
 # ── Main ───────────────────────────────────────────────────
+
 
 async def main() -> None:
     setup_logging()

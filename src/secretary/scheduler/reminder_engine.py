@@ -1,6 +1,5 @@
 """APScheduler-based reminder engine. Polls every 30 seconds for due reminders."""
 
-import asyncio
 import logging
 from datetime import datetime
 
@@ -34,25 +33,64 @@ class ReminderEngine:
             self._scheduler.shutdown(wait=False)
 
     async def _check_reminders(self) -> None:
-        """Check for due reminders and send notifications."""
+        """Check for due reminders and send notifications.
+
+        반복 리마인더의 경우 mark_delivered()가 다음 알림 시간을 재설정한다.
+        """
         try:
             async with async_session() as session:
                 reminders = await get_due_reminders(session, datetime.now())
                 for reminder in reminders:
-                    text = f"⏰ 리마인더: {reminder.message}"
-                    sent = await notification_service.notify_user(
-                        session, reminder.user_id, text
-                    )
+                    # 반복 리마인더인 경우 반복 정보 표시
+                    recur_label = ""
+                    if reminder.is_recurring and reminder.recurrence_rule:
+                        rule_labels = {
+                            "daily": "매일",
+                            "weekly": "매주",
+                            "monthly": "매월",
+                        }
+                        label = rule_labels.get(
+                            reminder.recurrence_rule.strip().lower(),
+                            reminder.recurrence_rule,
+                        )
+                        recur_label = f" (반복: {label})"
+
+                    text = f"⏰ 리마인더: {reminder.message}{recur_label}"
+                    sent = await notification_service.notify_user(session, reminder.user_id, text)
                     if sent:
                         await mark_delivered(session, reminder.id)
-                        logger.info(
-                            "Delivered reminder #%d to user_id=%d",
-                            reminder.id, reminder.user_id,
-                        )
+                        if reminder.is_recurring and reminder.recurrence_rule:
+                            # 세션을 refresh하여 갱신된 remind_at 확인
+                            await session.refresh(reminder)
+                            if not reminder.is_delivered:
+                                logger.info(
+                                    "Recurring reminder #%d delivered to user_id=%d, "
+                                    "next at %s (rule=%s, delivered_count=%d)",
+                                    reminder.id,
+                                    reminder.user_id,
+                                    reminder.remind_at,
+                                    reminder.recurrence_rule,
+                                    reminder.delivered_count,
+                                )
+                            else:
+                                logger.info(
+                                    "Recurring reminder #%d final delivery to user_id=%d "
+                                    "(recurrence ended, delivered_count=%d)",
+                                    reminder.id,
+                                    reminder.user_id,
+                                    reminder.delivered_count,
+                                )
+                        else:
+                            logger.info(
+                                "Delivered reminder #%d to user_id=%d",
+                                reminder.id,
+                                reminder.user_id,
+                            )
                     else:
                         logger.warning(
                             "Failed to deliver reminder #%d to user_id=%d",
-                            reminder.id, reminder.user_id,
+                            reminder.id,
+                            reminder.user_id,
                         )
         except Exception:
             logger.exception("Error in reminder check")

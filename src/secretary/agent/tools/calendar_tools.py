@@ -49,8 +49,7 @@ def get_calendar_tools(user_id: int, family_group_id: int) -> list:
                 visibility=args.get("visibility", "family"),
             )
             return _text(
-                f"일정 #{event.id} 등록됨: {event.title} "
-                f"({start.strftime('%m/%d %H:%M')})"
+                f"일정 #{event.id} 등록됨: {event.title} ({start.strftime('%m/%d %H:%M')})"
             )
 
     @tool(
