@@ -6,7 +6,7 @@
 
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from secretary.models.conversation import ConversationHistory
@@ -46,6 +46,28 @@ async def get_recent_conversations(
     # DB에서 desc로 가져왔으므로 시간순으로 뒤집기
     messages.reverse()
     return messages
+
+
+async def cleanup_old_conversations(
+    session: AsyncSession,
+    retention_days: int = 30,
+) -> int:
+    """보관 기간이 지난 오래된 대화 이력을 삭제한다.
+
+    Args:
+        session: DB 세션
+        retention_days: 보관 기간 (일 단위). 이 기간보다 오래된 대화 이력을 삭제한다.
+
+    Returns:
+        삭제된 레코드 수
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+
+    stmt = delete(ConversationHistory).where(ConversationHistory.created_at < cutoff)
+    result = await session.execute(stmt)
+    await session.commit()
+
+    return result.rowcount
 
 
 def format_conversation_history(messages: list[ConversationHistory]) -> str:

@@ -10,7 +10,7 @@ from secretary.agent.brain import agent_brain
 from secretary.models.database import async_session, init_db
 from secretary.models.user import FamilyGroup
 from secretary.platforms.base import PlatformAdapter
-from secretary.services.user_service import get_or_create_user, get_user_by_platform
+from secretary.services.user_service import get_or_create_user
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +55,25 @@ class SlackBot(PlatformAdapter):
             if event.get("channel_type") == "im":
                 await self._process_message(event, say)
 
+    async def _fetch_slack_display_name(self, slack_user_id: str) -> str:
+        """Slack API를 사용하여 사용자의 실제 표시 이름을 가져온다.
+
+        API 호출 실패 시 slack_user_id를 그대로 반환한다.
+        """
+        try:
+            result = await self._app.client.users_info(user=slack_user_id)
+            user_info = result["user"]
+            # display_name > real_name 순으로 시도
+            display_name = (
+                user_info.get("profile", {}).get("display_name")
+                or user_info.get("real_name")
+                or slack_user_id
+            )
+            return display_name
+        except Exception:
+            logger.warning("Slack users.info 호출 실패: user=%s", slack_user_id)
+            return slack_user_id
+
     async def _process_message(self, event: dict, say) -> None:
         slack_user_id = event.get("user", "")
         text = event.get("text", "").strip()
@@ -66,13 +85,15 @@ class SlackBot(PlatformAdapter):
         if text.startswith("<@"):
             text = text.split(">", 1)[-1].strip()
 
+        # Slack API로 사용자 표시 이름 조회
+        display_name = await self._fetch_slack_display_name(slack_user_id)
+
         async with async_session() as session:
-            # Get Slack user info for display name
             user = await get_or_create_user(
                 session,
                 platform="slack",
                 platform_user_id=slack_user_id,
-                display_name=slack_user_id,  # Will be updated later
+                display_name=display_name,
             )
 
             from secretary.models.conversation import ConversationHistory

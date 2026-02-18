@@ -1,11 +1,39 @@
 """MCP tools for web search and URL summarization."""
 
+import re
 from typing import Any
 
 import httpx
 from claude_agent_sdk import tool
 
 from config.settings import settings
+
+
+def _strip_html(html: str) -> str:
+    """HTML에서 텍스트만 추출합니다.
+
+    1. <script>, <style> 태그와 내용을 완전히 제거
+    2. 나머지 HTML 태그 제거
+    3. 연속 공백/줄바꿈 정리
+    """
+    # script, style 태그와 내용 제거
+    text = re.sub(r"<script[\s\S]*?</script>", "", html, flags=re.IGNORECASE)
+    text = re.sub(r"<style[\s\S]*?</style>", "", text, flags=re.IGNORECASE)
+    # HTML 주석 제거
+    text = re.sub(r"<!--[\s\S]*?-->", "", text)
+    # 모든 HTML 태그 제거
+    text = re.sub(r"<[^>]+>", " ", text)
+    # HTML 엔티티 변환 (일반적인 것들)
+    text = text.replace("&nbsp;", " ")
+    text = text.replace("&amp;", "&")
+    text = text.replace("&lt;", "<")
+    text = text.replace("&gt;", ">")
+    text = text.replace("&quot;", '"')
+    text = text.replace("&#39;", "'")
+    # 연속 공백을 하나로, 연속 줄바꿈을 최대 2개로 정리
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n\s*\n", "\n\n", text)
+    return text.strip()
 
 
 def get_search_tools() -> list:
@@ -50,8 +78,8 @@ def get_search_tools() -> list:
             async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
                 resp = await client.get(args["url"])
                 resp.raise_for_status()
-                # Return first 3000 chars of text content for Claude to summarize
-                text = resp.text[:3000]
+                # HTML 태그를 제거하고 본문 텍스트만 추출
+                text = _strip_html(resp.text)[:3000]
                 return _text(f"URL 내용 (일부):\n{text}")
         except Exception as e:
             return _text(f"URL 가져오기 실패: {e}")

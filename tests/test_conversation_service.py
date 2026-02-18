@@ -1,4 +1,4 @@
-"""Tests for conversation_service: 대화 이력 조회 및 포맷."""
+"""Tests for conversation_service: 대화 이력 조회, 포맷, 정리."""
 
 from datetime import datetime, timedelta, timezone
 
@@ -6,6 +6,7 @@ import pytest
 
 from secretary.models.conversation import ConversationHistory
 from secretary.services.conversation_service import (
+    cleanup_old_conversations,
     format_conversation_history,
     get_recent_conversations,
 )
@@ -194,3 +195,126 @@ def test_format_conversation_history_role_labels():
     result = format_conversation_history([user_msg, assistant_msg])
     assert "[사용자] 테스트" in result
     assert "[비서] 응답" in result
+
+
+# ── cleanup_old_conversations 테스트 ──────────────────
+
+
+@pytest.mark.asyncio
+async def test_cleanup_old_conversations_deletes_old_records(sample_family, db_session):
+    """보관 기간이 지난 대화 이력만 삭제한다."""
+    admin = sample_family["admin"]
+
+    # 오래된 메시지 (31일 전)
+    old_msg = ConversationHistory(
+        user_id=admin.id,
+        role="user",
+        content="오래된 메시지",
+        platform="telegram",
+    )
+    old_msg.created_at = datetime.now(timezone.utc) - timedelta(days=31)
+    db_session.add(old_msg)
+
+    # 최근 메시지
+    db_session.add(
+        ConversationHistory(
+            user_id=admin.id,
+            role="user",
+            content="최근 메시지",
+            platform="telegram",
+        )
+    )
+    await db_session.commit()
+
+    deleted = await cleanup_old_conversations(db_session, retention_days=30)
+    assert deleted == 1
+
+    # 최근 메시지는 남아있어야 한다
+    remaining = await get_recent_conversations(db_session, admin.id, ttl_hours=24 * 365)
+    assert len(remaining) == 1
+    assert remaining[0].content == "최근 메시지"
+
+
+@pytest.mark.asyncio
+async def test_cleanup_old_conversations_no_old_records(sample_family, db_session):
+    """삭제할 오래된 대화 이력이 없으면 0을 반환한다."""
+    admin = sample_family["admin"]
+
+    db_session.add(
+        ConversationHistory(
+            user_id=admin.id,
+            role="user",
+            content="최근 메시지",
+            platform="telegram",
+        )
+    )
+    await db_session.commit()
+
+    deleted = await cleanup_old_conversations(db_session, retention_days=30)
+    assert deleted == 0
+
+
+@pytest.mark.asyncio
+async def test_cleanup_old_conversations_empty_table(db_session):
+    """대화 이력이 없으면 0을 반환한다."""
+    deleted = await cleanup_old_conversations(db_session, retention_days=30)
+    assert deleted == 0
+
+
+@pytest.mark.asyncio
+async def test_cleanup_old_conversations_respects_retention_days(sample_family, db_session):
+    """보관 기간 설정에 따라 정확히 동작한다."""
+    admin = sample_family["admin"]
+
+    # 10일 전 메시지
+    msg_10d = ConversationHistory(
+        user_id=admin.id,
+        role="user",
+        content="10일 전 메시지",
+        platform="telegram",
+    )
+    msg_10d.created_at = datetime.now(timezone.utc) - timedelta(days=10)
+    db_session.add(msg_10d)
+
+    # 20일 전 메시지
+    msg_20d = ConversationHistory(
+        user_id=admin.id,
+        role="user",
+        content="20일 전 메시지",
+        platform="telegram",
+    )
+    msg_20d.created_at = datetime.now(timezone.utc) - timedelta(days=20)
+    db_session.add(msg_20d)
+
+    await db_session.commit()
+
+    # 보관 기간 15일: 20일 전 메시지만 삭제
+    deleted = await cleanup_old_conversations(db_session, retention_days=15)
+    assert deleted == 1
+
+    remaining = await get_recent_conversations(db_session, admin.id, ttl_hours=24 * 365)
+    assert len(remaining) == 1
+    assert remaining[0].content == "10일 전 메시지"
+
+
+@pytest.mark.asyncio
+async def test_cleanup_old_conversations_deletes_all_users(sample_family, db_session):
+    """모든 사용자의 오래된 대화 이력을 삭제한다."""
+    admin = sample_family["admin"]
+    member = sample_family["member"]
+
+    # 두 사용자의 오래된 메시지
+    for user in [admin, member]:
+        old_msg = ConversationHistory(
+            user_id=user.id,
+            role="user",
+            content=f"{user.display_name}의 오래된 메시지",
+            platform="telegram",
+        )
+        old_msg.created_at = datetime.now(timezone.utc) - timedelta(days=31)
+        db_session.add(old_msg)
+
+    await db_session.commit()
+
+    deleted = await cleanup_old_conversations(db_session, retention_days=30)
+    assert deleted == 2

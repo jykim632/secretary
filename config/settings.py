@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     # Conversation history (세션 복원 시 이전 대화 컨텍스트 로드)
     conversation_history_max_messages: int = 20
     conversation_history_ttl_hours: int = 24
+    conversation_history_retention_days: int = 30  # 오래된 대화 이력 자동 삭제 (일 단위)
 
     # Web search (optional)
     brave_search_api_key: str = ""
