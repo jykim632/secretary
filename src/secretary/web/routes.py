@@ -29,6 +29,8 @@ _LOG_FILE = _BASE_DIR / "logs" / "secretary.log"
 @router.get("/", response_class=HTMLResponse)
 async def dashboard():
     """대시보드 HTML 페이지를 반환한다."""
+    if not _DASHBOARD_HTML.exists():
+        return HTMLResponse(f"<h1>dashboard.html not found</h1><p>{_DASHBOARD_HTML}</p>", 500)
     return _DASHBOARD_HTML.read_text(encoding="utf-8")
 
 

@@ -31,6 +31,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/secretary"]
+artifacts = ["src/secretary/web/*.html"]
 
 [tool.ruff]
 target-version = "py312"
