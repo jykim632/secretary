@@ -5,14 +5,12 @@ the agent with MCP tools bound to the user's context.
 """
 
 import logging
-from typing import Any
 
 from claude_agent_sdk import (
     AssistantMessage,
     ClaudeAgentOptions,
     ClaudeSDKClient,
     TextBlock,
-    ToolUseBlock,
     create_sdk_mcp_server,
 )
 
